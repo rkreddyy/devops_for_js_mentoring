@@ -1,0 +1,95 @@
+# Pipeline for a angular front-end app.
+
+# Define the stages of the pipeline
+stages:
+  - dependencies
+  - build
+  - test
+  - deploy
+
+# Build stage
+build:
+  stage: build
+  image: node:14.16.1 # Use a specific version of Node.js for consistency
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node-modules # Cache the node_modules directory for faster builds
+    paths:
+      - node_modules/
+  script:
+    - npm ci # Install dependencies from package-lock.json for faster and more reliable builds
+    - npx ng build --prod # Build the application for production
+  artifacts:
+    paths:
+      - dist/ # Save the built application as an artifact for later stages to use
+
+# Install dependancies stage
+install_dependencies:
+  image: node:14.16.1 # Use a specific version of Node.js for consistency
+  stage: dependencies
+  script:
+    - npm install
+  only:
+    - master
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules
+
+# Lint stage
+lint:
+  image: node:14.16.1 # Use a specific version of Node.js for consistency
+  stage: test
+  script:
+    - npm run lint
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules
+    policy: pull
+
+# Test stage
+test:
+  stage: test
+  image: node:14.16.1 # Use a specific version of Node.js for consistency
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node-modules
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npx ng test --progress=false --watch=false --browsers=ChromeHeadlessCI # Run tests headlessly in Chrome
+  artifacts:
+    reports:
+      junit:
+        - test-results.xml # Save JUnit test results as an artifact for later stages to use
+
+# Audit stage
+audit:
+  image: node:14.16.1
+  stage: test
+  script:
+    - npm ci
+    - npm audit --audit-level=moderate # Or use `--audit-level=high` or `--audit-level=critical`
+    
+# Deploy stage
+deploy:
+  stage: deploy
+  image: docker:20.10.6 # Use a specific version of Docker for consistency
+  services:
+    - docker:20.10.6-dind # Use Docker-in-Docker for building and pushing Docker images
+  variables:
+    DOCKER_HOST: tcp://docker:2375 # Use the Docker-in-Docker service as the Docker host
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY # Log in to the GitLab container registry
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA . # Build a Docker image of the application
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA # Push the Docker image to the GitLab container registry
+  environment:
+    name: production
+    url: https://example.com # Replace with your production URL
+  only:
+    - master # Only deploy on the master branch
