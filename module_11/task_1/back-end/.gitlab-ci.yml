@@ -1,0 +1,64 @@
+# Pipeline for a node.js back-end app.
+
+# Define the stages of the pipeline
+stages:
+  - build
+  - test
+  - deploy
+
+# Build stage
+build:
+  stage: build
+  image: node:14.16.1 # Use a specific version of Node.js for consistency
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node-modules # Cache the node_modules directory for faster builds
+    paths:
+      - node_modules/
+  script:
+    - npm ci # Install dependencies from package-lock.json for faster and more reliable builds
+    - npm run build # Build the application
+  artifacts:
+    paths:
+      - dist/ # Save the built application as an artifact for later stages to use
+
+# Test stage
+test:
+  stage: test
+  image: node:14.16.1
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node-modules
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm run test # Run tests
+  artifacts:
+    reports:
+      junit:
+        - test-results.xml # Save JUnit test results as an artifact for later stages to use
+
+# Audit stage
+audit:
+  image: node:14.16.1
+  stage: test
+  script:
+    - npm ci
+    - npm audit --audit-level=moderate # Or use `--audit-level=high` or `--audit-level=critical`
+
+# Deploy stage
+deploy:
+  stage: deploy
+  image: node:14.16.1
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node-modules
+    paths:
+      - node_modules/
+  script:
+    - npm ci --production # Install only production dependencies
+    - npm run migrate # Run database migrations
+    - npm run start:prod # Start the application in production mode
+  environment:
+    name: production
+    url: https://example.com # Replace with your production URL
+  only:
+    - master # Only deploy on the master branch
