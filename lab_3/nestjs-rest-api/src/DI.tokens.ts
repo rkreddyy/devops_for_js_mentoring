@@ -1,3 +1,0 @@
-export const SQS_SERVICE = 'AWS_SQS_SERVICE';
-export const SNS_SERVICE = 'AWS_SNS_SERVICE';
-export const DYNAMO_DB_SERVICE = 'AWS_DYNAMO_DB_SERVICE';

@@ -1,5 +1,5 @@
-shop-angular-cloudfront
+node_modules
 
-module_4/lab_1/pipeline-*.json
+lab_1/pipeline-*.json
 
 apps_to_deploy
